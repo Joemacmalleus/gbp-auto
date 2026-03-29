@@ -11,6 +11,7 @@ interface Review {
   aiDraftReply: string | null;
   finalReply: string | null;
   replyStatus: string;
+  repliedAt: string | null;
   sentiment: string | null;
   keywords: string[];
 }
@@ -294,7 +295,7 @@ export default function ReviewsPage() {
                     {review.repliedAt && (
                       <div className="text-xs text-green-600 mt-2">
                         Replied{" "}
-                        {new Date(review.publishedAt).toLocaleDateString("en-US", {
+                        {new Date(review.repliedAt).toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
                         })}

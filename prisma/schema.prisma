@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── User & Auth ────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  googleId      String?  @unique
+  accessToken   String?  // Google OAuth access token (encrypted in production)
+  refreshToken  String?  // Google OAuth refresh token (encrypted in production)
+  tokenExpiry   DateTime?
+  plan          Plan     @default(FREE)
+  stripeId      String?  @unique
+  subscriptionId String?
+  trialEndsAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  businesses    Business[]
+}
+
+enum Plan {
+  FREE       // Can connect GBP + see audit, no actions
+  ACTIVE     // $79/mo — full access
+  CANCELLED  // Was active, subscription ended
+}
+
+// ─── Connected Business (GBP) ───────────────────────────────
+
+model Business {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Google Business Profile identifiers
+  gbpAccountId      String?  // accounts/{account_id}
+  gbpLocationId     String?  // locations/{location_id}
+  gbpPlaceId        String?  // Google Maps Place ID
+
+  // Basic info (synced from GBP)
+  name              String
+  category          String?
+  phone             String?
+  website           String?
+  address           String?
+  city              String?
+  state             String?
+  zip               String?
+  latitude          Float?
+  longitude         Float?
+  description       String?
+
+  // Optimization data (computed by our AI)
+  optimizationScore Int      @default(0)  // 0-100
+  auditJson         Json?    // Full audit breakdown: { photos: 60, description: 80, ... }
+  lastAuditAt       DateTime?
+
+  // Sync state
+  lastSyncAt        DateTime?
+  syncStatus        SyncStatus @default(PENDING)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  posts             Post[]
+  reviews           Review[]
+  rankings          RankingSnapshot[]
+  activities        Activity[]
+
+  @@unique([userId, gbpLocationId])
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCING
+  SYNCED
+  ERROR
+}
+
+// ─── Posts ───────────────────────────────────────────────────
+
+model Post {
+  id            String     @id @default(cuid())
+  businessId    String
+  business      Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Content
+  content       String     // Post body text
+  imageUrl      String?    // Optional image URL
+  callToAction  String?    // "LEARN_MORE", "CALL_NOW", "BOOK", etc.
+  ctaUrl        String?    // Link for CTA button
+  topicType     PostTopic  @default(GENERAL)
+
+  // State
+  status        PostStatus @default(DRAFT)
+  scheduledFor  DateTime?
+  publishedAt   DateTime?
+  gbpPostId     String?    // Google's post ID once published
+
+  // AI metadata
+  aiGenerated   Boolean    @default(false)
+  aiPrompt      String?    // What we asked Claude
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([businessId, status])
+  @@index([scheduledFor])
+}
+
+enum PostStatus {
+  DRAFT       // AI generated, awaiting approval
+  APPROVED    // User approved, waiting to publish
+  SCHEDULED   // Approved + has scheduledFor date
+  PUBLISHED   // Live on GBP
+  FAILED      // Publish attempt failed
+}
+
+enum PostTopic {
+  GENERAL     // What's new
+  EVENT       // Events
+  OFFER       // Offers/promos
+  PRODUCT     // Product updates
+  TIP         // Tips / educational
+  SEASONAL    // Holiday / seasonal
+}
+
+// ─── Reviews ─────────────────────────────────────────────────
+
+model Review {
+  id              String       @id @default(cuid())
+  businessId      String
+  business        Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Synced from Google
+  gbpReviewId     String       @unique  // Google's review ID
+  reviewerName    String
+  reviewerPhoto   String?
+  rating          Int          // 1-5 stars
+  comment         String?      // Review text (can be empty for star-only)
+  publishedAt     DateTime
+
+  // Our AI response
+  aiDraftReply    String?      // Claude's suggested response
+  finalReply      String?      // What was actually posted (edited or as-is)
+  replyStatus     ReplyStatus  @default(UNREAD)
+  repliedAt       DateTime?
+
+  // Sentiment analysis
+  sentiment       Sentiment?
+  keywords        String[]     // Extracted topics: ["service", "wait time", "friendly"]
+
+  syncedAt        DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([businessId, replyStatus])
+  @@index([businessId, publishedAt])
+}
+
+enum ReplyStatus {
+  UNREAD      // New review, not yet processed
+  AI_DRAFTED  // Claude generated a reply
+  APPROVED    // User approved the reply
+  PUBLISHED   // Reply posted to Google
+  SKIPPED     // User chose not to reply
+}
+
+enum Sentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+// ─── Ranking Snapshots ───────────────────────────────────────
+
+model RankingSnapshot {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  keyword     String    // Search term tracked
+  position    Int?      // Rank position (null = not found)
+  gridRank    Json?     // Local grid rank data: { "lat,lng": position }
+  mapPack     Boolean   @default(false)  // Appeared in map pack?
+  checkedAt   DateTime  @default(now())
+
+  @@index([businessId, keyword, checkedAt])
+}
+
+// ─── Activity Feed ───────────────────────────────────────────
+
+model Activity {
+  id          String       @id @default(cuid())
+  businessId  String
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  type        ActivityType
+  title       String
+  detail      String?
+  metadata    Json?
+
+  createdAt   DateTime     @default(now())
+
+  @@index([businessId, createdAt])
+}
+
+enum ActivityType {
+  PROFILE_CONNECTED
+  AUDIT_COMPLETED
+  POST_GENERATED
+  POST_PUBLISHED
+  REVIEW_RECEIVED
+  REVIEW_REPLIED
+  RANKING_CHECKED
+  OPTIMIZATION_TIP
+  SYNC_COMPLETED
+}

@@ -2,12 +2,31 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { generateReviewResponse } from "@/lib/ai";
+import {
+  withErrorHandler,
+  createNotFoundError,
+  createExternalServiceError,
+} from "@/lib/errors";
+import { rateLimiters, getClientIP } from "@/lib/rate-limit";
 
-export async function POST(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
+const handler = withErrorHandler(
+  async (
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+  ) => {
+    // Rate limiting for AI generation endpoints
+    const clientIP = getClientIP(req);
+    const limiterResult = rateLimiters.aiGeneration(clientIP);
+    if (!limiterResult.allowed) {
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded. Please wait before generating another reply.",
+          retryAfter: limiterResult.retryAfter,
+        },
+        { status: 429, headers: { "Retry-After": String(limiterResult.retryAfter) } }
+      );
+    }
+
     await requireSession();
     const { id } = await params;
 
@@ -17,16 +36,24 @@ export async function POST(
     });
 
     if (!review) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      throw createNotFoundError("Review not found");
     }
 
-    const result = await generateReviewResponse({
-      businessName: review.business.name,
-      category: review.business.category || "Business",
-      reviewerName: review.reviewerName,
-      rating: review.rating,
-      comment: review.comment || "",
-    });
+    let result;
+    try {
+      result = await generateReviewResponse({
+        businessName: review.business.name,
+        category: review.business.category || "Business",
+        reviewerName: review.reviewerName,
+        rating: review.rating,
+        comment: review.comment || "",
+      });
+    } catch (error) {
+      console.error("AI generation error:", error);
+      throw createExternalServiceError(
+        "Failed to generate reply. Please try again later."
+      );
+    }
 
     await prisma.review.update({
       where: { id },
@@ -39,8 +66,7 @@ export async function POST(
     });
 
     return NextResponse.json({ reply: result.reply });
-  } catch (error) {
-    console.error("Generate reply error:", error);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
-}
+);
+
+export const POST = handler;

@@ -1,40 +1,59 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { runOptimizationAudit } from "@/lib/ai";
-import { listReviews } from "@/lib/google";
+import {
+  withErrorHandler,
+  createAuthzError,
+  createExternalServiceError,
+} from "@/lib/errors";
+import { rateLimiters, getClientIP } from "@/lib/rate-limit";
 
-export async function POST() {
+const handler = withErrorHandler(async (req: NextRequest) => {
+  // Rate limiting for audit operations (moderate limit)
+  const clientIP = getClientIP(req);
+  const limiterResult = rateLimiters.sync(clientIP);
+  if (!limiterResult.allowed) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded. Please wait before running another audit.",
+        retryAfter: limiterResult.retryAfter,
+      },
+      { status: 429, headers: { "Retry-After": String(limiterResult.retryAfter) } }
+    );
+  }
+
+  const user = await requireSession();
+  const business = user.businesses[0];
+
+  if (!business || !user.accessToken) {
+    throw createAuthzError("Not connected to Google Business Profile");
+  }
+
+  // Gather current state
+  const [reviews, posts] = await Promise.all([
+    prisma.review.findMany({ where: { businessId: business.id } }),
+    prisma.post.findMany({
+      where: { businessId: business.id, status: "PUBLISHED" },
+    }),
+  ]);
+
+  const respondedReviews = reviews.filter(
+    (r) => r.replyStatus === "PUBLISHED"
+  ).length;
+  const responseRate = reviews.length > 0 ? respondedReviews / reviews.length : 0;
+  const avgRating =
+    reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : 0;
+
+  const lastPost = posts.sort(
+    (a, b) => (b.publishedAt?.getTime() || 0) - (a.publishedAt?.getTime() || 0)
+  )[0];
+
+  let audit;
   try {
-    const user = await requireSession();
-    const business = user.businesses[0];
-
-    if (!business || !user.accessToken) {
-      return NextResponse.json({ error: "Not connected" }, { status: 400 });
-    }
-
-    // Gather current state
-    const [reviews, posts] = await Promise.all([
-      prisma.review.findMany({ where: { businessId: business.id } }),
-      prisma.post.findMany({
-        where: { businessId: business.id, status: "PUBLISHED" },
-      }),
-    ]);
-
-    const respondedReviews = reviews.filter(
-      (r) => r.replyStatus === "PUBLISHED"
-    ).length;
-    const responseRate = reviews.length > 0 ? respondedReviews / reviews.length : 0;
-    const avgRating =
-      reviews.length > 0
-        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-        : 0;
-
-    const lastPost = posts.sort(
-      (a, b) => (b.publishedAt?.getTime() || 0) - (a.publishedAt?.getTime() || 0)
-    )[0];
-
-    const audit = await runOptimizationAudit({
+    audit = await runOptimizationAudit({
       businessName: business.name,
       category: business.category || "Unknown",
       description: business.description,
@@ -51,28 +70,32 @@ export async function POST() {
       hasHours: true,
       hasAttributes: false,
     });
-
-    await prisma.business.update({
-      where: { id: business.id },
-      data: {
-        optimizationScore: audit.overallScore,
-        auditJson: audit as any,
-        lastAuditAt: new Date(),
-      },
-    });
-
-    await prisma.activity.create({
-      data: {
-        businessId: business.id,
-        type: "AUDIT_COMPLETED",
-        title: `Optimization audit updated: ${audit.overallScore}/100`,
-        detail: audit.topPriorities[0],
-      },
-    });
-
-    return NextResponse.json({ audit });
   } catch (error) {
-    console.error("Audit error:", error);
-    return NextResponse.json({ error: "Audit failed" }, { status: 500 });
+    console.error("Audit generation error:", error);
+    throw createExternalServiceError(
+      "Failed to run optimization audit. Please try again later."
+    );
   }
-}
+
+  await prisma.business.update({
+    where: { id: business.id },
+    data: {
+      optimizationScore: audit.overallScore,
+      auditJson: audit as any,
+      lastAuditAt: new Date(),
+    },
+  });
+
+  await prisma.activity.create({
+    data: {
+      businessId: business.id,
+      type: "AUDIT_COMPLETED",
+      title: `Optimization audit updated: ${audit.overallScore}/100`,
+      detail: audit.topPriorities[0],
+    },
+  });
+
+  return NextResponse.json({ audit });
+});
+
+export const POST = handler;

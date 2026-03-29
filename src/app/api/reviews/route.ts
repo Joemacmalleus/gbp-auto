@@ -1,22 +1,22 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
+import { withErrorHandler, createAuthzError } from "@/lib/errors";
 
-export async function GET() {
-  try {
-    const user = await requireSession();
-    const business = user.businesses[0];
-    if (!business) {
-      return NextResponse.json({ error: "No business" }, { status: 404 });
-    }
+const handler = withErrorHandler(async () => {
+  const user = await requireSession();
+  const business = user.businesses[0];
 
-    const reviews = await prisma.review.findMany({
-      where: { businessId: business.id },
-      orderBy: { publishedAt: "desc" },
-    });
-
-    return NextResponse.json({ reviews });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!business) {
+    throw createAuthzError("No business connected");
   }
-}
+
+  const reviews = await prisma.review.findMany({
+    where: { businessId: business.id },
+    orderBy: { publishedAt: "desc" },
+  });
+
+  return NextResponse.json({ reviews });
+});
+
+export const GET = handler;

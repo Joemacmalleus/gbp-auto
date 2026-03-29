@@ -72,6 +72,7 @@ model Business {
   posts             Post[]
   reviews           Review[]
   rankings          RankingSnapshot[]
+  heatmaps          HeatmapSearch[]
   activities        Activity[]
 
   @@unique([userId, gbpLocationId])
@@ -194,6 +195,62 @@ model RankingSnapshot {
   checkedAt   DateTime  @default(now())
 
   @@index([businessId, keyword, checkedAt])
+}
+
+// ─── Heatmap (Local Rank Grid) ──────────────────────────────
+
+model HeatmapSearch {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  keyword     String          // Search term, e.g. "italian restaurant"
+  gridSize    Int    @default(7)   // 7x7 grid
+  radiusKm    Float  @default(5.0) // Radius in km from center
+  centerLat   Float           // Business latitude (center of grid)
+  centerLng   Float           // Business longitude (center of grid)
+
+  // Aggregated results
+  avgRank     Float?          // Average ranking across all grid points
+  bestRank    Int?            // Best position found
+  worstRank   Int?            // Worst position found
+  visibility  Float?          // % of grid points where business appeared (0-100)
+
+  status      HeatmapStatus @default(PENDING)
+  errorMsg    String?
+
+  points      HeatmapPoint[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, keyword, createdAt])
+}
+
+model HeatmapPoint {
+  id              String   @id @default(cuid())
+  heatmapSearchId String
+  heatmapSearch   HeatmapSearch @relation(fields: [heatmapSearchId], references: [id], onDelete: Cascade)
+
+  gridRow         Int      // Row in the grid (0-based)
+  gridCol         Int      // Column in the grid (0-based)
+  latitude        Float
+  longitude       Float
+
+  rank            Int?     // Business rank at this point (null = not found in top 20)
+  totalResults    Int?     // Total results returned at this point
+  topCompetitor   String?  // Name of #1 result at this point (if not us)
+
+  createdAt       DateTime @default(now())
+
+  @@index([heatmapSearchId])
+}
+
+enum HeatmapStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
 }
 
 // ─── Activity Feed ───────────────────────────────────────────

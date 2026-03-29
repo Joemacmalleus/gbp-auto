@@ -10,6 +10,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/posts", label: "Posts" },
   { href: "/reviews", label: "Reviews" },
+  { href: "/heatmap", label: "Heatmap" },
 ];
 
 export default function AppNav({ businessName }: AppNavProps) {

@@ -121,28 +121,56 @@ function AuditPreview() {
   );
 }
 
-function RankingPreview() {
+function HeatmapPreview() {
+  // 5x5 mini heatmap grid with sample rank data
+  const grid = [
+    [null, 12, 8, 15, null],
+    [9, 5, 3, 6, 11],
+    [7, 2, 1, 3, 8],
+    [10, 4, 2, 5, 13],
+    [null, 9, 6, 10, null],
+  ];
+
+  function color(rank: number | null) {
+    if (rank === null) return "#374151";
+    if (rank <= 3) return "#22C55E";
+    if (rank <= 5) return "#84CC16";
+    if (rank <= 7) return "#EAB308";
+    if (rank <= 10) return "#F97316";
+    if (rank <= 15) return "#EF4444";
+    return "#991B1B";
+  }
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 text-left">
-      <div className="text-xs font-medium text-gray-900 mb-1">Local Pack Ranking</div>
-      <div className="text-[10px] text-gray-400 mb-4">&ldquo;italian restaurant downtown&rdquo;</div>
-      <div className="flex items-end gap-1 h-28 mb-3">
-        {[8, 7, 6, 5, 4, 4, 3, 3, 3, 2, 2, 2].map((rank, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center justify-end">
-            <div
-              className={`w-full rounded-t ${i >= 9 ? "bg-green-500" : i >= 6 ? "bg-blue-400" : "bg-blue-200"}`}
-              style={{ height: `${((10 - rank) / 10) * 100}%` }}
-            />
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <div className="text-xs font-medium text-gray-900">Local Rank Heatmap</div>
+          <div className="text-[10px] text-gray-400">&ldquo;italian restaurant&rdquo; · 5km</div>
+        </div>
+        <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-medium">72% visible</span>
+      </div>
+      <div className="grid grid-cols-5 gap-1 mb-3">
+        {grid.flat().map((rank, i) => (
+          <div
+            key={i}
+            className="aspect-square rounded flex items-center justify-center text-white text-[10px] font-bold"
+            style={{ backgroundColor: color(rank) }}
+          >
+            {rank ?? "—"}
           </div>
         ))}
       </div>
-      <div className="flex items-center justify-between text-[10px] text-gray-400">
-        <span>12 weeks ago</span>
-        <span>This week</span>
-      </div>
-      <div className="flex items-center gap-2 mt-3">
-        <span className="text-lg font-bold text-green-600">#2</span>
-        <span className="text-[10px] text-green-600 bg-green-50 px-2 py-0.5 rounded-full">↑6 positions</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded" style={{ backgroundColor: "#22C55E" }} />
+          <span className="text-[10px] text-gray-400">Top 3</span>
+          <div className="w-2 h-2 rounded ml-1" style={{ backgroundColor: "#EAB308" }} />
+          <span className="text-[10px] text-gray-400">4–7</span>
+          <div className="w-2 h-2 rounded ml-1" style={{ backgroundColor: "#EF4444" }} />
+          <span className="text-[10px] text-gray-400">8+</span>
+        </div>
+        <span className="text-[10px] text-gray-400">📍 Center = your business</span>
       </div>
     </div>
   );
@@ -486,17 +514,17 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Feature 4: Ranking Tracker */}
+            {/* Feature 4: Heatmap */}
             <div className="flex flex-col md:flex-row-reverse gap-12 items-center">
               <div className="flex-1">
-                <div className="text-4xl mb-4">📈</div>
-                <h3 className="font-bold text-2xl mb-3 text-slate-900">Watch yourself climb the local pack</h3>
+                <div className="text-4xl mb-4">🗺️</div>
+                <h3 className="font-bold text-2xl mb-3 text-slate-900">See exactly where you rank on the map</h3>
                 <p className="text-gray-600 leading-relaxed text-lg">
-                  Track where you show up in Google Maps for your key search terms. See trends over time. Know if your optimization work is paying off — or if you&apos;re slipping.
+                  Local rank heatmap scans Google Maps from dozens of points around your business. See your ranking position at every location — find your strong zones and blind spots instantly.
                 </p>
               </div>
               <div className="flex-1 w-full">
-                <RankingPreview />
+                <HeatmapPreview />
               </div>
             </div>
           </div>
@@ -629,7 +657,7 @@ export default function LandingPage() {
                 "AI-generated weekly posts",
                 "Smart review response drafts",
                 "Optimization audit & score",
-                "Local ranking tracker",
+                "Local rank heatmap",
                 "Weekly email reports",
                 "One-click publish & reply",
                 "Content calendar",

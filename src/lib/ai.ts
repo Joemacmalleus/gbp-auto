@@ -7,7 +7,14 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// Lazy-init to avoid crash during Next.js build (no env vars at build time)
+let _anthropic: Anthropic | null = null;
+function getClient() {
+  if (!_anthropic) {
+    _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+  }
+  return _anthropic;
+}
 
 // ─── Post Generation ─────────────────────────────────────────
 
@@ -25,7 +32,7 @@ export async function generatePost(input: PostInput): Promise<{
   callToAction?: string;
   hashtags: string[];
 }> {
-  const msg = await anthropic.messages.create({
+  const msg = await getClient().messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 600,
     system: `You write engaging Google Business Profile posts for local businesses.
@@ -63,7 +70,7 @@ export async function generatePostCalendar(
   description: string | undefined,
   count: number = 4
 ): Promise<Array<{ content: string; topic: string; suggestedDay: string }>> {
-  const msg = await anthropic.messages.create({
+  const msg = await getClient().messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 2000,
     system: `You create a content calendar of Google Business Profile posts for local businesses.
@@ -101,7 +108,7 @@ export async function generateReviewResponse(input: ReviewInput): Promise<{
   sentiment: "POSITIVE" | "NEUTRAL" | "NEGATIVE";
   keywords: string[];
 }> {
-  const msg = await anthropic.messages.create({
+  const msg = await getClient().messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 500,
     system: `You write review responses for local businesses on Google Business Profile.
@@ -166,7 +173,7 @@ export interface AuditResult {
 }
 
 export async function runOptimizationAudit(input: AuditInput): Promise<AuditResult> {
-  const msg = await anthropic.messages.create({
+  const msg = await getClient().messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 1500,
     system: `You are a Google Business Profile optimization expert. Audit the profile and score it.
@@ -219,7 +226,7 @@ export async function rewriteDescription(
   currentDescription: string | undefined,
   location: string | undefined
 ): Promise<{ description: string; keywords: string[] }> {
-  const msg = await anthropic.messages.create({
+  const msg = await getClient().messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 500,
     system: `You write optimized Google Business Profile descriptions.

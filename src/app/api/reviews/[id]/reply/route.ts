@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
-import { replyToReview } from "@/lib/google";
+import { ensureValidToken, replyToReview } from "@/lib/google";
+import {
+  withErrorHandler,
+  createAuthError,
+  createNotFoundError,
+  createValidationError,
+  createExternalServiceError,
+} from "@/lib/errors";
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
+const handler = withErrorHandler(
+  async (
+    req: NextRequest,
+    context: { params: Promise<{ id: string }> }
+  ) => {
     const user = await requireSession();
-    const { id } = await params;
+    const { id } = await context.params;
     const body = await req.json();
 
     const review = await prisma.review.findUnique({
@@ -17,18 +24,29 @@ export async function POST(
       include: { business: true },
     });
 
-    if (!review || !user.accessToken) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!review) {
+      throw createNotFoundError("Review not found");
+    }
+
+    if (!user.accessToken) {
+      throw createAuthError("Not connected to Google");
     }
 
     // Use custom reply if provided, otherwise use AI draft
-    const replyText = body.reply || review.aiDraftReply;
+    const replyText = (body.reply as string) || review.aiDraftReply;
     if (!replyText) {
-      return NextResponse.json({ error: "No reply text" }, { status: 400 });
+      throw createValidationError("No reply text provided");
     }
 
-    // Post reply to Google
-    await replyToReview(user.accessToken, review.gbpReviewId, replyText);
+    // Ensure token is fresh
+    const validToken = await ensureValidToken(user);
+
+    try {
+      await replyToReview(validToken, review.gbpReviewId, replyText);
+    } catch (error) {
+      console.error("Reply error:", error);
+      throw createExternalServiceError("Failed to post reply to Google");
+    }
 
     // Update our record
     await prisma.review.update({
@@ -49,8 +67,7 @@ export async function POST(
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error("Reply error:", error);
-    return NextResponse.json({ error: "Reply failed" }, { status: 500 });
   }
-}
+);
+
+export const POST = handler;

@@ -83,15 +83,17 @@ export function isAppError(error: unknown): error is AppError {
  * Wraps an API route handler with error handling.
  * Catches errors and returns proper JSON responses with appropriate status codes.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function withErrorHandler(
   handler: (
     req: NextRequest,
-    context?: unknown
+    context?: any
   ) => Promise<NextResponse | Response>
 ) {
   return async (
     req: NextRequest,
-    context?: unknown
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    context?: any
   ): Promise<NextResponse> => {
     try {
       const response = await handler(req, context);

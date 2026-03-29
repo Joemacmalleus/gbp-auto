@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
-import { listReviews } from "@/lib/google";
+import { ensureValidToken, listAllReviews } from "@/lib/google";
 import { generateReviewResponse } from "@/lib/ai";
 import {
   withErrorHandler,
@@ -31,11 +31,14 @@ const handler = withErrorHandler(async (req: NextRequest) => {
     throw createAuthzError("Not connected to Google Business Profile");
   }
 
-  let googleReviews: any[] = [];
+  // Ensure token is fresh before calling Google
+  const validToken = await ensureValidToken(user);
+
+  let googleReviews: Record<string, unknown>[] = [];
   try {
-    // Fetch reviews from Google
-    const result = await listReviews(user.accessToken, business.gbpLocationId);
-    googleReviews = result.reviews || [];
+    // Fetch ALL reviews using pagination
+    const result = await listAllReviews(validToken, business.gbpLocationId);
+    googleReviews = (result.reviews as Record<string, unknown>[]) || [];
   } catch (error) {
     console.error("Google API error:", error);
     throw createExternalServiceError(
@@ -46,31 +49,35 @@ const handler = withErrorHandler(async (req: NextRequest) => {
   let newCount = 0;
 
   for (const gr of googleReviews) {
+    const reviewId = (gr.reviewId || gr.name) as string;
     const existing = await prisma.review.findUnique({
-      where: { gbpReviewId: gr.reviewId || gr.name },
+      where: { gbpReviewId: reviewId },
     });
 
     if (existing) continue; // Already synced
 
-    // Generate AI response for new reviews
-    let aiResult = null;
-    if (gr.comment) {
+    // Parse star rating
+    const starRating = gr.starRating as string;
+    const ratingNum =
+      starRating === "FIVE" ? 5
+      : starRating === "FOUR" ? 4
+      : starRating === "THREE" ? 3
+      : starRating === "TWO" ? 2
+      : 1;
+
+    // Generate AI response for new reviews with comments
+    const comment = gr.comment as string | undefined;
+    const reviewer = gr.reviewer as Record<string, string> | undefined;
+    let aiResult: { reply: string; sentiment: string; keywords: string[] } | null = null;
+
+    if (comment) {
       try {
         aiResult = await generateReviewResponse({
           businessName: business.name,
           category: business.category || "Business",
-          reviewerName: gr.reviewer?.displayName || "Customer",
-          rating:
-            gr.starRating === "FIVE"
-              ? 5
-              : gr.starRating === "FOUR"
-                ? 4
-                : gr.starRating === "THREE"
-                  ? 3
-                  : gr.starRating === "TWO"
-                    ? 2
-                    : 1,
-          comment: gr.comment,
+          reviewerName: reviewer?.displayName || "Customer",
+          rating: ratingNum,
+          comment,
         });
       } catch (error) {
         console.error("AI generation error for review:", error);
@@ -78,29 +85,18 @@ const handler = withErrorHandler(async (req: NextRequest) => {
       }
     }
 
-    const ratingNum =
-      gr.starRating === "FIVE"
-        ? 5
-        : gr.starRating === "FOUR"
-          ? 4
-          : gr.starRating === "THREE"
-            ? 3
-            : gr.starRating === "TWO"
-              ? 2
-              : 1;
-
     await prisma.review.create({
       data: {
         businessId: business.id,
-        gbpReviewId: gr.reviewId || gr.name,
-        reviewerName: gr.reviewer?.displayName || "Anonymous",
-        reviewerPhoto: gr.reviewer?.profilePhotoUrl,
+        gbpReviewId: reviewId,
+        reviewerName: reviewer?.displayName || "Anonymous",
+        reviewerPhoto: reviewer?.profilePhotoUrl,
         rating: ratingNum,
-        comment: gr.comment || null,
-        publishedAt: new Date(gr.createTime || gr.updateTime),
+        comment: comment || null,
+        publishedAt: new Date((gr.createTime || gr.updateTime) as string),
         aiDraftReply: aiResult?.reply || null,
         replyStatus: aiResult ? "AI_DRAFTED" : "UNREAD",
-        sentiment: (aiResult?.sentiment as any) || null,
+        sentiment: (aiResult?.sentiment as "POSITIVE" | "NEUTRAL" | "NEGATIVE") || null,
         keywords: aiResult?.keywords || [],
       },
     });

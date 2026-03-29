@@ -111,6 +111,7 @@ model Post {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
+  @@index([businessId])
   @@index([businessId, status])
   @@index([scheduledFor])
 }
@@ -160,6 +161,7 @@ model Review {
   syncedAt        DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
+  @@index([businessId])
   @@index([businessId, replyStatus])
   @@index([businessId, publishedAt])
 }

@@ -26,8 +26,8 @@ const handler = withErrorHandler(async (req: NextRequest) => {
   const user = await requireSession();
   const business = user.businesses[0];
 
-  if (!business || !user.accessToken) {
-    throw createAuthzError("Not connected to Google Business Profile");
+  if (!business) {
+    throw createAuthzError("No business connected");
   }
 
   // Gather current state

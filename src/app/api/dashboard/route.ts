@@ -11,8 +11,8 @@ const handler = withErrorHandler(async () => {
     throw createAuthzError("No business connected");
   }
 
-  // Parallel queries with eager loading to avoid N+1
-  const [activities, posts, reviews, rankings] = await Promise.all([
+  // Parallel queries with pagination to avoid loading full dataset into memory
+  const [activities, posts, recentReviews, reviewStats, rankings] = await Promise.all([
     prisma.activity.findMany({
       where: { businessId: business.id },
       orderBy: { createdAt: "desc" },
@@ -21,10 +21,18 @@ const handler = withErrorHandler(async () => {
     prisma.post.findMany({
       where: { businessId: business.id },
       orderBy: { createdAt: "desc" },
+      take: 50, // Last 50 posts instead of all
     }),
     prisma.review.findMany({
       where: { businessId: business.id },
       orderBy: { publishedAt: "desc" },
+      take: 50, // Last 50 reviews for display
+    }),
+    // Aggregate stats via DB instead of loading all records
+    prisma.review.aggregate({
+      where: { businessId: business.id },
+      _avg: { rating: true },
+      _count: { id: true },
     }),
     prisma.rankingSnapshot.findMany({
       where: { businessId: business.id },
@@ -33,20 +41,19 @@ const handler = withErrorHandler(async () => {
     }),
   ]);
 
+  // Count unreplied reviews efficiently
+  const unrepliedCount = await prisma.review.count({
+    where: {
+      businessId: business.id,
+      replyStatus: { in: ["UNREAD", "AI_DRAFTED"] },
+    },
+  });
+
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const postsThisMonth = posts.filter(
     (p) => p.status === "PUBLISHED" && p.publishedAt && p.publishedAt >= startOfMonth
   ).length;
-
-  const unrepliedReviews = reviews.filter(
-    (r) => r.replyStatus === "UNREAD" || r.replyStatus === "AI_DRAFTED"
-  ).length;
-
-  const avgRating =
-    reviews.length > 0
-      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-      : 0;
 
   // Latest ranking per keyword, then average
   const latestRankings = new Map<string, number>();
@@ -76,13 +83,14 @@ const handler = withErrorHandler(async () => {
     },
     stats: {
       postsThisMonth,
-      reviewsTotal: reviews.length,
-      reviewsUnreplied: unrepliedReviews,
-      averageRating: avgRating,
+      reviewsTotal: reviewStats._count.id,
+      reviewsUnreplied: unrepliedCount,
+      averageRating: reviewStats._avg.rating ?? 0,
       avgRanking,
     },
     activities,
     upcomingPosts,
+    recentReviews: recentReviews.slice(0, 10), // Top 10 for quick display
   });
 });
 

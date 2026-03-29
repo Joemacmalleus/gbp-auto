@@ -1,32 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
+import { withErrorHandler, createNotFoundError } from "@/lib/errors";
 
-export async function POST(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
+const handler = withErrorHandler(
+  async (
+    _req: NextRequest,
+    context: { params: Promise<{ id: string }> }
+  ) => {
     await requireSession();
-    const { id } = await params;
+    const { id } = await context.params;
 
-    const post = await prisma.post.update({
-      where: { id },
-      data: {
-        status: "SCHEDULED", // Auto-schedule if scheduledFor is set
-      },
-    });
-
-    // If post has a scheduledFor date, keep it as SCHEDULED. Otherwise APPROVED.
-    if (!post.scheduledFor) {
-      await prisma.post.update({
-        where: { id },
-        data: { status: "APPROVED" },
-      });
+    const post = await prisma.post.findUnique({ where: { id } });
+    if (!post) {
+      throw createNotFoundError("Post not found");
     }
 
-    return NextResponse.json({ post });
-  } catch {
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    // If post has a scheduledFor date, keep it as SCHEDULED. Otherwise APPROVED.
+    const newStatus = post.scheduledFor ? "SCHEDULED" : "APPROVED";
+
+    const updated = await prisma.post.update({
+      where: { id },
+      data: { status: newStatus },
+    });
+
+    return NextResponse.json({ post: updated });
   }
-}
+);
+
+export const POST = handler;

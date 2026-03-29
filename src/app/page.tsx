@@ -377,7 +377,7 @@ export default function LandingPage() {
             {[
               {
                 name: "Marco",
-                business: "Marco&apos;s Italian Kitchen",
+                business: "Marco's Italian Kitchen",
                 location: "Portland, OR",
                 initial: "M",
                 color: "bg-blue-600",
@@ -401,7 +401,7 @@ export default function LandingPage() {
                 location: "Denver, CO",
                 initial: "M",
                 color: "bg-amber-600",
-                quote: "Went from #8 to #2 in local search. The optimization audit alone paid for a year&apos;s subscription.",
+                quote: "Went from #8 to #2 in local search. The optimization audit alone paid for a year's subscription.",
                 metric: "#8 → #2 ranking",
                 rating: 5,
               },

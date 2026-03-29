@@ -117,13 +117,13 @@ function PostsContent() {
 
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
-      DRAFT: "bg-gray-100 text-gray-700",
-      APPROVED: "bg-blue-50 text-blue-700",
-      SCHEDULED: "bg-purple-50 text-purple-700",
-      PUBLISHED: "bg-green-50 text-green-700",
-      FAILED: "bg-red-50 text-red-700",
+      DRAFT: "badge-slate",
+      APPROVED: "badge-blue",
+      SCHEDULED: "badge-blue",
+      PUBLISHED: "badge-green",
+      FAILED: "badge-red",
     };
-    return map[status] || "bg-gray-100 text-gray-700";
+    return map[status] || "badge-slate";
   };
 
   const topicLabel = (topic: string) => {
@@ -136,14 +136,14 @@ function PostsContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-slate-50">
         <AppNav />
         <div className="mx-auto max-w-5xl px-6 py-8">
-          <div className="h-8 w-32 bg-gray-200 rounded animate-skeleton mb-2" />
-          <div className="h-4 w-64 bg-gray-200 rounded animate-skeleton mb-8" />
+          <div className="h-8 w-32 bg-slate-200 rounded-lg animate-skeleton mb-2" />
+          <div className="h-4 w-64 bg-slate-200 rounded animate-skeleton mb-8" />
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 h-32 animate-skeleton" />
+              <div key={i} className="card p-5 h-32 animate-skeleton" />
             ))}
           </div>
         </div>
@@ -152,37 +152,38 @@ function PostsContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <AppNav />
 
-      <div className="mx-auto max-w-5xl px-6 py-8">
+      <div className="mx-auto max-w-5xl px-6 py-8 animate-fade-in">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Posts</h1>
-            <p className="text-gray-500 text-sm">AI-generated posts for your Google Business Profile</p>
+            <h1 className="text-2xl font-bold text-slate-900">Posts</h1>
+            <p className="text-slate-500 text-sm">AI-generated posts for your Google Business Profile</p>
           </div>
           <button
             onClick={generatePosts}
             disabled={generating}
-            className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
+            className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
           >
             {generating && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
             {generating ? "Generating..." : "Generate new posts"}
           </button>
         </div>
 
-        <div className="flex gap-1 mb-6">
+        {/* Filter tabs */}
+        <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-lg w-fit">
           {(["all", "draft", "scheduled", "published"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 text-sm rounded-lg transition capitalize ${
-                filter === f ? "bg-white border border-gray-200 font-medium shadow-sm" : "text-gray-500 hover:text-gray-700"
+              className={`px-3 py-1.5 text-sm rounded-md transition-all duration-200 capitalize ${
+                filter === f ? "bg-white font-medium shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"
               }`}
             >
               {f}
               {f !== "all" && (
-                <span className="ml-1 text-xs text-gray-400">
+                <span className="ml-1 text-xs text-slate-400">
                   ({posts.filter((p) =>
                     f === "draft" ? p.status === "DRAFT" :
                     f === "scheduled" ? p.status === "SCHEDULED" || p.status === "APPROVED" :
@@ -195,31 +196,37 @@ function PostsContent() {
         </div>
 
         {filtered.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <div className="text-3xl mb-3">✍️</div>
-            <h3 className="font-semibold mb-1">No posts yet</h3>
-            <p className="text-gray-500 text-sm mb-4">Generate your first batch of AI-powered posts</p>
-            <button
-              onClick={generatePosts}
-              disabled={generating}
-              className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-            >
-              Generate posts
-            </button>
+          <div className="card p-12">
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                </svg>
+              </div>
+              <h3 className="font-semibold text-slate-800 mb-1">No posts yet</h3>
+              <p className="text-slate-500 text-sm mb-4 max-w-xs">Generate your first batch of AI-powered posts tailored to your business.</p>
+              <button
+                onClick={generatePosts}
+                disabled={generating}
+                className="bg-blue-600 text-white text-sm px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                Generate posts
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 stagger-children">
             {filtered.map((post) => (
-              <div key={post.id} className="bg-white rounded-xl border border-gray-200 p-5">
+              <div key={post.id} className="card card-hover p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded">{topicLabel(post.topicType)}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${statusBadge(post.status)}`}>
+                      <span className="badge badge-slate">{topicLabel(post.topicType)}</span>
+                      <span className={`badge ${statusBadge(post.status)}`}>
                         {post.status.toLowerCase().replace("_", " ")}
                       </span>
                       {post.aiGenerated && (
-                        <span className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded">AI generated</span>
+                        <span className="badge" style={{ background: "#f5f3ff", color: "#7c3aed" }}>AI generated</span>
                       )}
                     </div>
 
@@ -228,20 +235,20 @@ function PostsContent() {
                         <textarea
                           value={editContent}
                           onChange={(e) => setEditContent(e.target.value)}
-                          className="w-full border border-gray-200 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full border border-slate-200 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           rows={3}
                         />
                         <div className="flex items-center gap-2">
-                          <button onClick={() => updatePost(post.id)} className="text-xs bg-blue-600 text-white px-3 py-1 rounded-lg">Save</button>
-                          <button onClick={() => setEditingId(null)} className="text-xs text-gray-500 px-3 py-1">Cancel</button>
-                          <span className="text-xs text-gray-400 ml-auto">{editContent.length}/300 characters</span>
+                          <button onClick={() => updatePost(post.id)} className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors">Save</button>
+                          <button onClick={() => setEditingId(null)} className="text-xs text-slate-500 px-3 py-1.5 hover:text-slate-700">Cancel</button>
+                          <span className="text-xs text-slate-400 ml-auto">{editContent.length}/300 characters</span>
                         </div>
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-700 leading-relaxed">{post.content}</p>
+                      <p className="text-sm text-slate-700 leading-relaxed">{post.content}</p>
                     )}
 
-                    <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
+                    <div className="flex items-center gap-4 mt-3 text-xs text-slate-400">
                       <span>Created {new Date(post.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                       {post.scheduledFor && (
                         <span>Scheduled {new Date(post.scheduledFor).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</span>
@@ -258,28 +265,28 @@ function PostsContent() {
                         <>
                           <button
                             onClick={() => { setEditingId(post.id); setEditContent(post.content); }}
-                            className="text-xs text-gray-500 px-2 py-1 rounded hover:bg-gray-50"
+                            className="text-xs text-slate-500 px-2 py-1 rounded-lg hover:bg-slate-50 transition-colors"
                           >
                             Edit
                           </button>
-                          <button onClick={() => approvePost(post.id)} className="text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded-lg hover:bg-blue-100">
+                          <button onClick={() => approvePost(post.id)} className="text-xs text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">
                             Approve
                           </button>
                         </>
                       )}
                       {(post.status === "APPROVED" || post.status === "SCHEDULED") && (
-                        <button onClick={() => publishPost(post.id)} className="text-xs text-green-700 bg-green-50 px-3 py-1 rounded-lg hover:bg-green-100">
+                        <button onClick={() => publishPost(post.id)} className="text-xs text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors">
                           Publish now
                         </button>
                       )}
                       {post.status !== "PUBLISHED" && (
                         confirmDeleteId === post.id ? (
                           <div className="flex items-center gap-1">
-                            <button onClick={() => deletePost(post.id)} className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded-lg">Confirm</button>
-                            <button onClick={() => setConfirmDeleteId(null)} className="text-xs text-gray-500 px-2 py-1">Cancel</button>
+                            <button onClick={() => deletePost(post.id)} className="text-xs text-red-600 bg-red-50 px-2 py-1.5 rounded-lg hover:bg-red-100 transition-colors">Confirm</button>
+                            <button onClick={() => setConfirmDeleteId(null)} className="text-xs text-slate-500 px-2 py-1.5">Cancel</button>
                           </div>
                         ) : (
-                          <button onClick={() => setConfirmDeleteId(post.id)} className="text-xs text-red-500 px-2 py-1 rounded hover:bg-red-50">
+                          <button onClick={() => setConfirmDeleteId(post.id)} className="text-xs text-red-500 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors">
                             Delete
                           </button>
                         )

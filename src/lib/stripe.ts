@@ -1,27 +1,12 @@
-import Stripe from "stripe";
+// Stripe integration — disabled for beta
+// TODO: Re-enable when ready to add billing
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-12-18.acacia",
-});
+export const stripe = null;
 
-export async function createCheckoutSession(userId: string, email: string) {
-  return stripe.checkout.sessions.create({
-    customer_email: email,
-    mode: "subscription",
-    line_items: [{ price: process.env.STRIPE_PRICE_ID!, quantity: 1 }],
-    success_url: `${process.env.APP_URL}/dashboard?subscribed=true`,
-    cancel_url: `${process.env.APP_URL}/pricing`,
-    metadata: { userId },
-    subscription_data: {
-      trial_period_days: 7,
-      metadata: { userId },
-    },
-  });
+export async function createCheckoutSession(_userId: string, _email: string) {
+  throw new Error("Billing is not enabled in beta");
 }
 
-export async function createPortalSession(stripeCustomerId: string) {
-  return stripe.billingPortal.sessions.create({
-    customer: stripeCustomerId,
-    return_url: `${process.env.APP_URL}/dashboard`,
-  });
+export async function createPortalSession(_stripeCustomerId: string) {
+  throw new Error("Billing is not enabled in beta");
 }

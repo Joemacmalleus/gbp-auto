@@ -2,27 +2,100 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Page entrance ─────────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.35s ease-out both;
+}
+
+/* staggered children — apply to parent, children get delay via nth-child */
+.stagger-children > * {
+  opacity: 0;
+  animation: fade-in 0.35s ease-out both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0.04s; }
+.stagger-children > *:nth-child(2) { animation-delay: 0.08s; }
+.stagger-children > *:nth-child(3) { animation-delay: 0.12s; }
+.stagger-children > *:nth-child(4) { animation-delay: 0.16s; }
+.stagger-children > *:nth-child(5) { animation-delay: 0.20s; }
+.stagger-children > *:nth-child(6) { animation-delay: 0.24s; }
+.stagger-children > *:nth-child(7) { animation-delay: 0.28s; }
+.stagger-children > *:nth-child(8) { animation-delay: 0.32s; }
+.stagger-children > *:nth-child(9) { animation-delay: 0.36s; }
+.stagger-children > *:nth-child(10) { animation-delay: 0.40s; }
+
+/* ─── Slide up (existing) ───────────────────────────────────── */
 @keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .animate-slide-up {
   animation: slide-up 0.2s ease-out;
 }
 
-/* Skeleton loading pulse */
+/* ─── Skeleton loading pulse ────────────────────────────────── */
 @keyframes skeleton-pulse {
   0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.7; }
+  50%      { opacity: 0.7; }
 }
 
 .animate-skeleton {
   animation: skeleton-pulse 1.5s ease-in-out infinite;
 }
+
+/* ─── Card system ───────────────────────────────────────────── */
+.card {
+  @apply bg-white rounded-xl border border-slate-200/80 shadow-sm
+         transition-all duration-200 ease-out;
+}
+
+.card-hover:hover {
+  @apply shadow-md border-slate-300/80 -translate-y-0.5;
+}
+
+.card-interactive {
+  @apply card card-hover cursor-pointer;
+}
+
+/* ─── Metric card glow accents ──────────────────────────────── */
+.metric-blue    { box-shadow: 0 1px 3px 0 rgba(59,130,246,0.08), 0 1px 2px -1px rgba(59,130,246,0.06); }
+.metric-green   { box-shadow: 0 1px 3px 0 rgba(34,197,94,0.08),  0 1px 2px -1px rgba(34,197,94,0.06); }
+.metric-amber   { box-shadow: 0 1px 3px 0 rgba(245,158,11,0.08), 0 1px 2px -1px rgba(245,158,11,0.06); }
+.metric-purple  { box-shadow: 0 1px 3px 0 rgba(168,85,247,0.08), 0 1px 2px -1px rgba(168,85,247,0.06); }
+
+/* ─── Heatmap grid entrance wave ────────────────────────────── */
+@keyframes grid-pop {
+  from { opacity: 0; transform: scale(0.7); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.heatmap-cell {
+  opacity: 0;
+  animation: grid-pop 0.3s ease-out both;
+}
+
+/* ─── Empty state illustration ──────────────────────────────── */
+.empty-state {
+  @apply flex flex-col items-center justify-center text-center py-16 px-6;
+}
+
+.empty-state-icon {
+  @apply w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50
+         flex items-center justify-center mb-4 text-slate-400;
+}
+
+/* ─── Subtle count badge ────────────────────────────────────── */
+.badge {
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+}
+
+.badge-blue   { @apply bg-blue-50 text-blue-700; }
+.badge-green  { @apply bg-emerald-50 text-emerald-700; }
+.badge-amber  { @apply bg-amber-50 text-amber-700; }
+.badge-red    { @apply bg-red-50 text-red-700; }
+.badge-slate  { @apply bg-slate-100 text-slate-600; }

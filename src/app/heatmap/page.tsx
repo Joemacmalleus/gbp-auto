@@ -57,21 +57,26 @@ function GridCell({
   point,
   selected,
   onClick,
+  index,
 }: {
   point: HeatmapPoint;
   selected: boolean;
   onClick: () => void;
+  index: number;
 }) {
   return (
     <button
       onClick={onClick}
       className={`
-        aspect-square rounded-lg flex items-center justify-center
+        heatmap-cell aspect-square rounded-lg flex items-center justify-center
         text-white font-bold text-xs sm:text-sm transition-all
         hover:scale-110 hover:z-10 hover:shadow-lg
-        ${selected ? "ring-2 ring-white ring-offset-2 ring-offset-gray-900 scale-110 z-10" : ""}
+        ${selected ? "ring-2 ring-white ring-offset-2 ring-offset-slate-900 scale-110 z-10" : ""}
       `}
-      style={{ backgroundColor: rankToColor(point.rank) }}
+      style={{
+        backgroundColor: rankToColor(point.rank),
+        animationDelay: `${index * 0.04}s`,
+      }}
       title={point.rank ? `#${point.rank}` : "Not found"}
     >
       {point.rank ?? "\u2014"}
@@ -101,7 +106,7 @@ function HeatmapGrid({
   });
 
   return (
-    <div className="bg-gray-900 rounded-2xl p-4 sm:p-6">
+    <div className="bg-slate-900 rounded-2xl p-4 sm:p-6 shadow-lg">
       <div
         className="grid gap-1.5 sm:gap-2 mx-auto"
         style={{
@@ -117,11 +122,13 @@ function HeatmapGrid({
                 point={point}
                 selected={selectedPoint?.id === point.id}
                 onClick={() => onSelectPoint(point)}
+                index={r * gridSize + c}
               />
             ) : (
               <div
                 key={`${r}-${c}`}
-                className="aspect-square rounded-lg bg-gray-800 flex items-center justify-center text-gray-600 text-xs"
+                className="heatmap-cell aspect-square rounded-lg bg-slate-800 flex items-center justify-center text-slate-600 text-xs"
+                style={{ animationDelay: `${(r * gridSize + c) * 0.04}s` }}
               >
                 ?
               </div>
@@ -130,7 +137,7 @@ function HeatmapGrid({
         )}
       </div>
       <div className="text-center mt-3">
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-slate-400">
           Your business is at the center &middot; {heatmap.radiusKm}km radius
         </span>
       </div>
@@ -143,30 +150,30 @@ function HeatmapGrid({
 function StatsBar({ heatmap }: { heatmap: HeatmapSearch }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="text-xs text-gray-500 mb-1">Visibility</div>
+      <div className="card p-4 metric-blue">
+        <div className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-1">Visibility</div>
         <div className={`text-2xl font-bold ${
-          (heatmap.visibility ?? 0) >= 70 ? "text-green-600" :
-          (heatmap.visibility ?? 0) >= 40 ? "text-yellow-600" : "text-red-600"
+          (heatmap.visibility ?? 0) >= 70 ? "text-emerald-600" :
+          (heatmap.visibility ?? 0) >= 40 ? "text-amber-600" : "text-red-500"
         }`}>
           {heatmap.visibility ?? 0}%
         </div>
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="text-xs text-gray-500 mb-1">Best Rank</div>
-        <div className="text-2xl font-bold text-green-600">
+      <div className="card p-4 metric-green">
+        <div className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-1">Best Rank</div>
+        <div className="text-2xl font-bold text-emerald-600">
           {heatmap.bestRank ? `#${heatmap.bestRank}` : "\u2014"}
         </div>
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="text-xs text-gray-500 mb-1">Avg Rank</div>
+      <div className="card p-4 metric-blue">
+        <div className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-1">Avg Rank</div>
         <div className="text-2xl font-bold text-blue-600">
           {heatmap.avgRank ? `#${heatmap.avgRank}` : "\u2014"}
         </div>
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="text-xs text-gray-500 mb-1">Worst Rank</div>
-        <div className="text-2xl font-bold text-orange-600">
+      <div className="card p-4 metric-amber">
+        <div className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-1">Worst Rank</div>
+        <div className="text-2xl font-bold text-amber-600">
           {heatmap.worstRank ? `#${heatmap.worstRank}` : "\u2014"}
         </div>
       </div>
@@ -178,30 +185,30 @@ function StatsBar({ heatmap }: { heatmap: HeatmapSearch }) {
 
 function PointDetail({ point }: { point: HeatmapPoint }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
-      <h3 className="font-semibold text-sm mb-3">Grid Point Detail</h3>
+    <div className="card p-5 animate-fade-in">
+      <h3 className="font-semibold text-sm text-slate-800 mb-3">Grid Point Detail</h3>
       <div className="space-y-3">
         <div className="flex items-center gap-3">
           <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-sm"
             style={{ backgroundColor: rankToColor(point.rank) }}
           >
             {rankLabel(point.rank)}
           </div>
           <div>
-            <div className="text-sm font-medium">
+            <div className="text-sm font-medium text-slate-800">
               {point.rank ? `Ranking #${point.rank}` : "Not found in top 20"}
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-slate-500">
               Row {point.gridRow + 1}, Col {point.gridCol + 1}
             </div>
           </div>
         </div>
-        <div className="text-xs text-gray-500 space-y-1">
+        <div className="text-xs text-slate-500 space-y-1">
           <div>{point.latitude.toFixed(4)}, {point.longitude.toFixed(4)}</div>
           <div>{point.totalResults ?? 0} results at this location</div>
           {point.topCompetitor && (
-            <div>Top competitor: {point.topCompetitor}</div>
+            <div className="text-slate-700 font-medium">Top competitor: {point.topCompetitor}</div>
           )}
         </div>
       </div>
@@ -226,8 +233,8 @@ function Legend() {
     <div className="flex flex-wrap gap-3 justify-center">
       {items.map((item) => (
         <div key={item.label} className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded" style={{ backgroundColor: item.color }} />
-          <span className="text-xs text-gray-500">{item.label}</span>
+          <div className="w-3 h-3 rounded-sm shadow-sm" style={{ backgroundColor: item.color }} />
+          <span className="text-xs text-slate-500">{item.label}</span>
         </div>
       ))}
     </div>
@@ -300,14 +307,14 @@ function KeywordCard({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left rounded-xl border p-4 transition hover:shadow-sm ${
-        isActive ? "border-blue-500 bg-blue-50 shadow-sm" : "bg-white border-gray-200 hover:border-blue-300"
+      className={`w-full text-left rounded-xl border p-4 transition-all duration-200 hover:shadow-md ${
+        isActive ? "border-blue-500 bg-blue-50/80 shadow-sm" : "bg-white border-slate-200/80 hover:border-blue-300 hover:-translate-y-0.5"
       }`}
     >
       <div className="flex items-center justify-between">
         <div className="min-w-0 flex-1">
           <div className="font-medium text-sm truncate">{heatmap.keyword}</div>
-          <div className="text-xs text-gray-500 mt-0.5">
+          <div className="text-xs text-slate-500 mt-0.5">
             {heatmap.gridSize}&times;{heatmap.gridSize} &middot; {heatmap.radiusKm}km
           </div>
         </div>
@@ -344,7 +351,7 @@ function KeywordCard({
 function ScanProgress({ total, scanned }: { total: number; scanned: number }) {
   const pct = Math.round((scanned / total) * 100);
   return (
-    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-6">
+    <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200/60 rounded-2xl p-6 mb-6">
       <div className="flex items-center gap-3 mb-3">
         <span className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
         <h3 className="font-semibold text-blue-900">
@@ -536,16 +543,16 @@ function HeatmapContent() {
   // Loading skeleton
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-slate-50">
         <AppNav />
         <div className="mx-auto max-w-6xl px-6 py-8">
-          <div className="h-8 w-64 bg-gray-200 rounded animate-skeleton mb-2" />
-          <div className="h-4 w-96 bg-gray-200 rounded animate-skeleton mb-8" />
-          <div className="bg-gray-200 rounded-2xl h-40 animate-skeleton mb-6" />
+          <div className="h-8 w-64 bg-slate-200 rounded animate-skeleton mb-2" />
+          <div className="h-4 w-96 bg-slate-200 rounded animate-skeleton mb-8" />
+          <div className="bg-slate-200 rounded-2xl h-40 animate-skeleton mb-6" />
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-gray-200 rounded-xl h-24 animate-skeleton" />
-            <div className="bg-gray-200 rounded-xl h-24 animate-skeleton" />
-            <div className="bg-gray-200 rounded-xl h-24 animate-skeleton" />
+            <div className="bg-slate-200 rounded-xl h-24 animate-skeleton" />
+            <div className="bg-slate-200 rounded-xl h-24 animate-skeleton" />
+            <div className="bg-slate-200 rounded-xl h-24 animate-skeleton" />
           </div>
         </div>
       </div>
@@ -553,15 +560,15 @@ function HeatmapContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <AppNav />
 
-      <div className="mx-auto max-w-6xl px-6 py-8">
+      <div className="mx-auto max-w-6xl px-6 py-8 animate-fade-in">
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold mb-1">Local Rank Heatmap</h1>
-            <p className="text-gray-500 text-sm">
+            <h1 className="text-2xl font-bold text-slate-900 mb-1">Local Rank Heatmap</h1>
+            <p className="text-slate-500 text-sm">
               {category
                 ? `Auto-tracking your visibility for "${category}" keywords across Google Maps`
                 : "See where you rank in Google Maps across your area"}
@@ -570,14 +577,14 @@ function HeatmapContent() {
           <div className="flex gap-2">
             <button
               onClick={() => setShowAddKeyword(!showAddKeyword)}
-              className="text-sm px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+              className="text-sm px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
             >
               + Add keyword
             </button>
             <button
               onClick={rescanAll}
               disabled={scanning}
-              className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-1.5"
+              className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
             >
               {scanning && (
                 <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -589,13 +596,13 @@ function HeatmapContent() {
 
         {/* Custom keyword input (expandable) */}
         {showAddKeyword && (
-          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 flex gap-3">
+          <div className="card p-4 mb-6 flex gap-3">
             <input
               type="text"
               value={customKeyword}
               onChange={(e) => setCustomKeyword(e.target.value)}
               placeholder="Enter a custom keyword to track..."
-              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               onKeyDown={(e) => e.key === "Enter" && !runningCustom && runCustomScan()}
               autoFocus
             />
@@ -627,7 +634,7 @@ function HeatmapContent() {
           <div className="grid lg:grid-cols-12 gap-6">
             {/* Left: keyword cards */}
             <div className="lg:col-span-4 space-y-2">
-              <h2 className="font-semibold text-sm text-gray-500 uppercase tracking-wide mb-2">
+              <h2 className="font-semibold text-sm text-slate-500 uppercase tracking-wide mb-2">
                 Tracked Keywords
               </h2>
               {heatmaps
@@ -650,7 +657,7 @@ function HeatmapContent() {
                     <h2 className="font-semibold text-lg">
                       &ldquo;{activeHeatmap.keyword}&rdquo;
                     </h2>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-slate-500">
                       {activeHeatmap.gridSize}&times;{activeHeatmap.gridSize} grid &middot; {activeHeatmap.radiusKm}km radius &middot;{" "}
                       {new Date(activeHeatmap.createdAt).toLocaleDateString("en-US", {
                         month: "short",
@@ -674,8 +681,8 @@ function HeatmapContent() {
                   {selectedPoint && <PointDetail point={selectedPoint} />}
                 </div>
               ) : (
-                <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-                  <div className="text-gray-400 text-sm">
+                <div className="card p-12 text-center">
+                  <div className="text-slate-400 text-sm">
                     Select a keyword to view its heatmap
                   </div>
                 </div>
@@ -686,18 +693,24 @@ function HeatmapContent() {
 
         {/* Empty state — no business connected */}
         {!scanning && heatmaps.length === 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <div className="text-5xl mb-4">&#x1F5FA;&#xFE0F;</div>
-            <h3 className="font-semibold text-lg mb-2">Connect your business to get started</h3>
-            <p className="text-gray-500 text-sm max-w-md mx-auto mb-6">
-              Once your Google Business Profile is connected, we will automatically scan your area for the keywords that matter most to your business category.
-            </p>
-            <a
-              href="/connect"
-              className="inline-block bg-blue-600 text-white text-sm px-5 py-2.5 rounded-lg hover:bg-blue-700 transition"
-            >
-              Connect your GBP
-            </a>
+          <div className="card p-12">
+            <div className="empty-state">
+              <div className="empty-state-icon" style={{ width: "4.5rem", height: "4.5rem", borderRadius: "1.25rem" }}>
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+              </div>
+              <h3 className="font-semibold text-lg text-slate-800 mb-2">Connect your business to get started</h3>
+              <p className="text-slate-500 text-sm max-w-md mx-auto mb-6">
+                Once your Google Business Profile is connected, we&apos;ll automatically scan your area for the keywords that matter most to your business category.
+              </p>
+              <a
+                href="/connect"
+                className="inline-block bg-blue-600 text-white text-sm px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                Connect your GBP
+              </a>
+            </div>
           </div>
         )}
       </div>

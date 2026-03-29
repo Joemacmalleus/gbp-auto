@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import AppNav from "@/components/AppNav";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ToastProvider, useToast } from "@/components/Toast";
@@ -37,7 +37,7 @@ interface HeatmapSearch {
 // ─── Color helpers ──────────────────────────────────────────
 
 function rankToColor(rank: number | null): string {
-  if (rank === null) return "#374151"; // gray-700
+  if (rank === null) return "#374151";
   if (rank <= 3) return "#22C55E";
   if (rank <= 5) return "#84CC16";
   if (rank <= 7) return "#EAB308";
@@ -46,22 +46,12 @@ function rankToColor(rank: number | null): string {
   return "#991B1B";
 }
 
-function rankToBgClass(rank: number | null): string {
-  if (rank === null) return "bg-gray-700";
-  if (rank <= 3) return "bg-green-500";
-  if (rank <= 5) return "bg-lime-500";
-  if (rank <= 7) return "bg-yellow-500";
-  if (rank <= 10) return "bg-orange-500";
-  if (rank <= 15) return "bg-red-500";
-  return "bg-red-900";
-}
-
 function rankLabel(rank: number | null): string {
-  if (rank === null) return "—";
+  if (rank === null) return "\u2014";
   return `#${rank}`;
 }
 
-// ─── Grid Cell Component ────────────────────────────────────
+// ─── Grid Cell ─────────────────────────────────────────────
 
 function GridCell({
   point,
@@ -84,12 +74,12 @@ function GridCell({
       style={{ backgroundColor: rankToColor(point.rank) }}
       title={point.rank ? `#${point.rank}` : "Not found"}
     >
-      {point.rank ?? "—"}
+      {point.rank ?? "\u2014"}
     </button>
   );
 }
 
-// ─── Heatmap Grid Visualization ─────────────────────────────
+// ─── Grid Visualization ─────────────────────────────────────
 
 function HeatmapGrid({
   heatmap,
@@ -101,8 +91,6 @@ function HeatmapGrid({
   onSelectPoint: (point: HeatmapPoint) => void;
 }) {
   const gridSize = heatmap.gridSize;
-
-  // Organize points into a 2D grid
   const grid: (HeatmapPoint | null)[][] = Array.from({ length: gridSize }, () =>
     Array(gridSize).fill(null)
   );
@@ -141,11 +129,9 @@ function HeatmapGrid({
           )
         )}
       </div>
-
-      {/* Center marker */}
       <div className="text-center mt-3">
         <span className="text-xs text-gray-400">
-          📍 Your business is at the center · {heatmap.radiusKm}km radius
+          Your business is at the center &middot; {heatmap.radiusKm}km radius
         </span>
       </div>
     </div>
@@ -165,34 +151,30 @@ function StatsBar({ heatmap }: { heatmap: HeatmapSearch }) {
         }`}>
           {heatmap.visibility ?? 0}%
         </div>
-        <div className="text-[10px] text-gray-400 mt-1">of grid points</div>
       </div>
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="text-xs text-gray-500 mb-1">Best Rank</div>
         <div className="text-2xl font-bold text-green-600">
-          {heatmap.bestRank ? `#${heatmap.bestRank}` : "—"}
+          {heatmap.bestRank ? `#${heatmap.bestRank}` : "\u2014"}
         </div>
-        <div className="text-[10px] text-gray-400 mt-1">highest position</div>
       </div>
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="text-xs text-gray-500 mb-1">Avg Rank</div>
         <div className="text-2xl font-bold text-blue-600">
-          {heatmap.avgRank ? `#${heatmap.avgRank}` : "—"}
+          {heatmap.avgRank ? `#${heatmap.avgRank}` : "\u2014"}
         </div>
-        <div className="text-[10px] text-gray-400 mt-1">across grid</div>
       </div>
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="text-xs text-gray-500 mb-1">Worst Rank</div>
         <div className="text-2xl font-bold text-orange-600">
-          {heatmap.worstRank ? `#${heatmap.worstRank}` : "—"}
+          {heatmap.worstRank ? `#${heatmap.worstRank}` : "\u2014"}
         </div>
-        <div className="text-[10px] text-gray-400 mt-1">lowest position</div>
       </div>
     </div>
   );
 }
 
-// ─── Point Detail Panel ─────────────────────────────────────
+// ─── Point Detail ───────────────────────────────────────────
 
 function PointDetail({ point }: { point: HeatmapPoint }) {
   return (
@@ -216,10 +198,10 @@ function PointDetail({ point }: { point: HeatmapPoint }) {
           </div>
         </div>
         <div className="text-xs text-gray-500 space-y-1">
-          <div>📍 {point.latitude.toFixed(4)}, {point.longitude.toFixed(4)}</div>
-          <div>📊 {point.totalResults ?? 0} results at this location</div>
+          <div>{point.latitude.toFixed(4)}, {point.longitude.toFixed(4)}</div>
+          <div>{point.totalResults ?? 0} results at this location</div>
           {point.topCompetitor && (
-            <div>🏆 Top competitor: {point.topCompetitor}</div>
+            <div>Top competitor: {point.topCompetitor}</div>
           )}
         </div>
       </div>
@@ -231,12 +213,12 @@ function PointDetail({ point }: { point: HeatmapPoint }) {
 
 function Legend() {
   const items = [
-    { label: "#1–3", color: "#22C55E" },
-    { label: "#4–5", color: "#84CC16" },
-    { label: "#6–7", color: "#EAB308" },
-    { label: "#8–10", color: "#F97316" },
-    { label: "#11–15", color: "#EF4444" },
-    { label: "#16–20", color: "#991B1B" },
+    { label: "#1\u20133", color: "#22C55E" },
+    { label: "#4\u20135", color: "#84CC16" },
+    { label: "#6\u20137", color: "#EAB308" },
+    { label: "#8\u201310", color: "#F97316" },
+    { label: "#11\u201315", color: "#EF4444" },
+    { label: "#16\u201320", color: "#991B1B" },
     { label: "Not found", color: "#374151" },
   ];
 
@@ -252,6 +234,141 @@ function Legend() {
   );
 }
 
+// ─── Aggregate Overview Card ────────────────────────────────
+
+function AggregateOverview({ heatmaps }: { heatmaps: HeatmapSearch[] }) {
+  const completed = heatmaps.filter((h) => h.status === "COMPLETED" && h.visibility !== null);
+  if (completed.length === 0) return null;
+
+  const avgVisibility = Math.round(
+    completed.reduce((sum, h) => sum + (h.visibility ?? 0), 0) / completed.length
+  );
+  const bestRank = Math.min(
+    ...completed.filter((h) => h.bestRank !== null).map((h) => h.bestRank!)
+  );
+  const avgRank = Math.round(
+    completed.filter((h) => h.avgRank !== null).reduce((sum, h) => sum + h.avgRank!, 0) /
+      completed.filter((h) => h.avgRank !== null).length * 10
+  ) / 10;
+  const keywordsFound = completed.filter((h) => (h.visibility ?? 0) > 0).length;
+
+  return (
+    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 text-white mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-bold">Overall Map Visibility</h2>
+          <p className="text-blue-200 text-sm">
+            Across {completed.length} keyword{completed.length > 1 ? "s" : ""} in your category
+          </p>
+        </div>
+        <div className="text-right">
+          <div className="text-4xl font-black">{avgVisibility}%</div>
+          <div className="text-blue-200 text-xs">avg visibility</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 mt-4">
+        <div className="bg-white/10 rounded-xl p-3">
+          <div className="text-2xl font-bold">{isFinite(bestRank) ? `#${bestRank}` : "\u2014"}</div>
+          <div className="text-blue-200 text-xs">best rank</div>
+        </div>
+        <div className="bg-white/10 rounded-xl p-3">
+          <div className="text-2xl font-bold">{avgRank ? `#${avgRank}` : "\u2014"}</div>
+          <div className="text-blue-200 text-xs">avg rank</div>
+        </div>
+        <div className="bg-white/10 rounded-xl p-3">
+          <div className="text-2xl font-bold">{keywordsFound}/{completed.length}</div>
+          <div className="text-blue-200 text-xs">keywords found</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Keyword Card (clickable) ───────────────────────────────
+
+function KeywordCard({
+  heatmap,
+  isActive,
+  onClick,
+}: {
+  heatmap: HeatmapSearch;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const vis = heatmap.visibility ?? 0;
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full text-left rounded-xl border p-4 transition hover:shadow-sm ${
+        isActive ? "border-blue-500 bg-blue-50 shadow-sm" : "bg-white border-gray-200 hover:border-blue-300"
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="font-medium text-sm truncate">{heatmap.keyword}</div>
+          <div className="text-xs text-gray-500 mt-0.5">
+            {heatmap.gridSize}&times;{heatmap.gridSize} &middot; {heatmap.radiusKm}km
+          </div>
+        </div>
+        <div className="flex items-center gap-2 ml-3">
+          {heatmap.bestRank && (
+            <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full whitespace-nowrap">
+              Best #{heatmap.bestRank}
+            </span>
+          )}
+          <div className={`text-lg font-bold ${
+            vis >= 70 ? "text-green-600" :
+            vis >= 40 ? "text-yellow-600" : "text-red-600"
+          }`}>
+            {vis}%
+          </div>
+        </div>
+      </div>
+
+      {/* Mini visibility bar */}
+      <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${
+            vis >= 70 ? "bg-green-500" : vis >= 40 ? "bg-yellow-500" : "bg-red-500"
+          }`}
+          style={{ width: `${vis}%` }}
+        />
+      </div>
+    </button>
+  );
+}
+
+// ─── Scanning Progress ──────────────────────────────────────
+
+function ScanProgress({ total, scanned }: { total: number; scanned: number }) {
+  const pct = Math.round((scanned / total) * 100);
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-6">
+      <div className="flex items-center gap-3 mb-3">
+        <span className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <h3 className="font-semibold text-blue-900">
+          Scanning your area...
+        </h3>
+      </div>
+      <p className="text-blue-700 text-sm mb-3">
+        Querying Google Maps for each keyword across your geographic grid. This runs automatically based on your business category.
+      </p>
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-2 bg-blue-200 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-blue-600 rounded-full transition-all duration-500"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <span className="text-sm font-medium text-blue-800 whitespace-nowrap">
+          {scanned} / {total} keywords
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page Content ──────────────────────────────────────
 
 function HeatmapContent() {
@@ -259,29 +376,33 @@ function HeatmapContent() {
   const [activeHeatmap, setActiveHeatmap] = useState<HeatmapSearch | null>(null);
   const [selectedPoint, setSelectedPoint] = useState<HeatmapPoint | null>(null);
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [keyword, setKeyword] = useState("");
-  const [gridSize, setGridSize] = useState(7);
-  const [radiusKm, setRadiusKm] = useState(5);
+  const [scanning, setScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState({ total: 0, scanned: 0 });
+  const [category, setCategory] = useState<string | null>(null);
+  const [customKeyword, setCustomKeyword] = useState("");
+  const [runningCustom, setRunningCustom] = useState(false);
+  const [showAddKeyword, setShowAddKeyword] = useState(false);
   const { toast } = useToast();
+  const autoScanTriggered = useRef(false);
 
+  // Load existing heatmaps
   const fetchHeatmaps = useCallback(async () => {
     try {
       const r = await fetch("/api/heatmap");
       if (!r.ok) throw new Error();
       const data = await r.json();
-      setHeatmaps(data.heatmaps || []);
+      const maps = data.heatmaps || [];
+      setHeatmaps(maps);
+      return maps;
     } catch {
       toast("Failed to load heatmaps", "error");
+      return [];
     } finally {
       setLoading(false);
     }
   }, [toast]);
 
-  useEffect(() => {
-    fetchHeatmaps();
-  }, [fetchHeatmaps]);
-
+  // Load a specific heatmap with full points
   const loadHeatmap = async (id: string) => {
     try {
       const r = await fetch(`/api/heatmap/${id}`);
@@ -290,49 +411,142 @@ function HeatmapContent() {
       setActiveHeatmap(data.heatmap);
       setSelectedPoint(null);
     } catch {
-      toast("Failed to load heatmap", "error");
+      toast("Failed to load heatmap details", "error");
     }
   };
 
-  const runHeatmap = async () => {
-    if (!keyword.trim()) {
-      toast("Enter a keyword to search", "error");
-      return;
-    }
+  // Auto-scan: check if we need to run, then run
+  const runAutoScan = useCallback(async () => {
+    if (autoScanTriggered.current) return;
+    autoScanTriggered.current = true;
 
-    setRunning(true);
+    try {
+      // Check what keywords exist and what needs scanning
+      const checkRes = await fetch("/api/heatmap/auto");
+      if (!checkRes.ok) return;
+      const checkData = await checkRes.json();
+
+      setCategory(checkData.category);
+
+      if (!checkData.business) return;
+
+      // If all keywords already scanned recently, just load them
+      if (checkData.needsScan.length === 0 && checkData.alreadyScanned.length > 0) {
+        return;
+      }
+
+      // If there are keywords to scan, run the auto-scan
+      if (checkData.needsScan.length > 0) {
+        setScanning(true);
+        setScanProgress({ total: checkData.needsScan.length, scanned: 0 });
+
+        const res = await fetch("/api/heatmap/auto", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ gridSize: 5, radiusKm: 5 }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.heatmaps?.length > 0) {
+            setScanProgress({ total: data.heatmaps.length, scanned: data.heatmaps.length });
+            toast(`Scanned ${data.heatmaps.length} keywords for your area`);
+          }
+        }
+
+        setScanning(false);
+        // Refresh the heatmap list
+        const maps = await fetchHeatmaps();
+        // Auto-select the first one
+        if (maps.length > 0) {
+          loadHeatmap(maps[0].id);
+        }
+      }
+    } catch (err) {
+      console.error("Auto-scan error:", err);
+      setScanning(false);
+    }
+  }, [fetchHeatmaps, toast]);
+
+  // Initial load
+  useEffect(() => {
+    (async () => {
+      const maps = await fetchHeatmaps();
+      if (maps.length > 0) {
+        // Auto-load the first heatmap
+        loadHeatmap(maps[0].id);
+      } else {
+        // No existing scans — trigger auto-scan
+        runAutoScan();
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Run a custom keyword scan
+  const runCustomScan = async () => {
+    if (!customKeyword.trim()) return;
+    setRunningCustom(true);
     try {
       const r = await fetch("/api/heatmap", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyword: keyword.trim(), gridSize, radiusKm }),
+        body: JSON.stringify({ keyword: customKeyword.trim(), gridSize: 5, radiusKm: 5 }),
       });
-
       if (!r.ok) {
         const err = await r.json();
-        throw new Error(err.error || "Failed to run heatmap");
+        throw new Error(err.error || "Failed to run scan");
       }
-
       const data = await r.json();
       setActiveHeatmap(data.heatmap);
       setSelectedPoint(null);
-      toast(`Heatmap complete! Visibility: ${data.heatmap.visibility}%`);
-      fetchHeatmaps(); // Refresh the list
+      setCustomKeyword("");
+      setShowAddKeyword(false);
+      toast(`Scan complete: ${data.heatmap.visibility}% visibility`);
+      fetchHeatmaps();
     } catch (e: any) {
-      toast(e.message || "Failed to run heatmap scan", "error");
+      toast(e.message || "Scan failed", "error");
     } finally {
-      setRunning(false);
+      setRunningCustom(false);
     }
   };
 
+  // Re-scan all keywords
+  const rescanAll = async () => {
+    setScanning(true);
+    try {
+      const res = await fetch("/api/heatmap/auto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gridSize: 5, radiusKm: 5, force: true }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        toast(`Re-scanned ${data.scanned} keywords`);
+        const maps = await fetchHeatmaps();
+        if (maps.length > 0) loadHeatmap(maps[0].id);
+      }
+    } catch {
+      toast("Re-scan failed", "error");
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  // Loading skeleton
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <AppNav />
         <div className="mx-auto max-w-6xl px-6 py-8">
-          <div className="h-8 w-48 bg-gray-200 rounded animate-skeleton mb-2" />
-          <div className="h-4 w-72 bg-gray-200 rounded animate-skeleton mb-8" />
-          <div className="bg-gray-200 rounded-2xl h-96 animate-skeleton" />
+          <div className="h-8 w-64 bg-gray-200 rounded animate-skeleton mb-2" />
+          <div className="h-4 w-96 bg-gray-200 rounded animate-skeleton mb-8" />
+          <div className="bg-gray-200 rounded-2xl h-40 animate-skeleton mb-6" />
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-gray-200 rounded-xl h-24 animate-skeleton" />
+            <div className="bg-gray-200 rounded-xl h-24 animate-skeleton" />
+            <div className="bg-gray-200 rounded-xl h-24 animate-skeleton" />
+          </div>
         </div>
       </div>
     );
@@ -344,187 +558,146 @@ function HeatmapContent() {
 
       <div className="mx-auto max-w-6xl px-6 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold mb-1">Local Rank Heatmap</h1>
-          <p className="text-gray-500 text-sm">
-            See where you rank in Google Maps across a geographic grid around your business
-          </p>
-        </div>
-
-        {/* Search form */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Search keyword</label>
-              <input
-                type="text"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                placeholder='e.g. "italian restaurant" or "dentist near me"'
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onKeyDown={(e) => e.key === "Enter" && !running && runHeatmap()}
-              />
-            </div>
-            <div className="w-24">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Grid size</label>
-              <select
-                value={gridSize}
-                onChange={(e) => setGridSize(Number(e.target.value))}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value={3}>3×3</option>
-                <option value={5}>5×5</option>
-                <option value={7}>7×7</option>
-                <option value={9}>9×9</option>
-              </select>
-            </div>
-            <div className="w-28">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Radius (km)</label>
-              <select
-                value={radiusKm}
-                onChange={(e) => setRadiusKm(Number(e.target.value))}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value={2}>2 km</option>
-                <option value={5}>5 km</option>
-                <option value={10}>10 km</option>
-                <option value={15}>15 km</option>
-                <option value={20}>20 km</option>
-              </select>
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={runHeatmap}
-                disabled={running || !keyword.trim()}
-                className="bg-blue-600 text-white text-sm px-5 py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
-              >
-                {running && (
-                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                )}
-                {running ? "Scanning..." : "Run Scan"}
-              </button>
-            </div>
-          </div>
-          {running && (
-            <div className="mt-3 bg-blue-50 text-blue-700 text-xs rounded-lg px-3 py-2">
-              Querying Google Places at {gridSize * gridSize} grid points... This may take 15–30 seconds.
-            </div>
-          )}
-        </div>
-
-        {/* Active heatmap visualization */}
-        {activeHeatmap && (
-          <div className="space-y-6 mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="font-semibold text-lg">
-                  &ldquo;{activeHeatmap.keyword}&rdquo;
-                </h2>
-                <div className="text-xs text-gray-500">
-                  {activeHeatmap.gridSize}×{activeHeatmap.gridSize} grid · {activeHeatmap.radiusKm}km radius ·{" "}
-                  {new Date(activeHeatmap.createdAt).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </div>
-              </div>
-            </div>
-
-            <StatsBar heatmap={activeHeatmap} />
-
-            <div className="grid lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <HeatmapGrid
-                  heatmap={activeHeatmap}
-                  selectedPoint={selectedPoint}
-                  onSelectPoint={setSelectedPoint}
-                />
-                <div className="mt-4">
-                  <Legend />
-                </div>
-              </div>
-              <div>
-                {selectedPoint ? (
-                  <PointDetail point={selectedPoint} />
-                ) : (
-                  <div className="bg-white rounded-xl border border-gray-200 p-5 text-center">
-                    <div className="text-gray-400 text-sm">
-                      Click a grid cell to see details
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Previous scans */}
-        {heatmaps.length > 0 && (
+        <div className="flex items-start justify-between mb-6">
           <div>
-            <h2 className="font-semibold mb-3">Previous Scans</h2>
-            <div className="space-y-2">
-              {heatmaps.map((h) => (
-                <button
-                  key={h.id}
-                  onClick={() => loadHeatmap(h.id)}
-                  className={`w-full text-left bg-white rounded-xl border p-4 transition hover:border-blue-300 hover:shadow-sm ${
-                    activeHeatmap?.id === h.id ? "border-blue-500 bg-blue-50" : "border-gray-200"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-sm">&ldquo;{h.keyword}&rdquo;</div>
-                      <div className="text-xs text-gray-500">
-                        {h.gridSize}×{h.gridSize} · {h.radiusKm}km ·{" "}
-                        {new Date(h.createdAt).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {h.visibility !== null && (
-                        <span className={`text-sm font-bold ${
-                          h.visibility >= 70 ? "text-green-600" :
-                          h.visibility >= 40 ? "text-yellow-600" : "text-red-600"
-                        }`}>
-                          {h.visibility}%
-                        </span>
-                      )}
-                      {h.bestRank && (
-                        <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
-                          Best: #{h.bestRank}
-                        </span>
-                      )}
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        h.status === "COMPLETED" ? "bg-green-50 text-green-600" :
-                        h.status === "RUNNING" ? "bg-blue-50 text-blue-600" :
-                        h.status === "FAILED" ? "bg-red-50 text-red-600" :
-                        "bg-gray-50 text-gray-500"
-                      }`}>
-                        {h.status.toLowerCase()}
-                      </span>
+            <h1 className="text-2xl font-bold mb-1">Local Rank Heatmap</h1>
+            <p className="text-gray-500 text-sm">
+              {category
+                ? `Auto-tracking your visibility for "${category}" keywords across Google Maps`
+                : "See where you rank in Google Maps across your area"}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowAddKeyword(!showAddKeyword)}
+              className="text-sm px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+            >
+              + Add keyword
+            </button>
+            <button
+              onClick={rescanAll}
+              disabled={scanning}
+              className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {scanning && (
+                <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              )}
+              {scanning ? "Scanning..." : "Rescan all"}
+            </button>
+          </div>
+        </div>
+
+        {/* Custom keyword input (expandable) */}
+        {showAddKeyword && (
+          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 flex gap-3">
+            <input
+              type="text"
+              value={customKeyword}
+              onChange={(e) => setCustomKeyword(e.target.value)}
+              placeholder="Enter a custom keyword to track..."
+              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onKeyDown={(e) => e.key === "Enter" && !runningCustom && runCustomScan()}
+              autoFocus
+            />
+            <button
+              onClick={runCustomScan}
+              disabled={runningCustom || !customKeyword.trim()}
+              className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
+            >
+              {runningCustom && (
+                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              )}
+              {runningCustom ? "Scanning..." : "Scan"}
+            </button>
+          </div>
+        )}
+
+        {/* Scanning progress */}
+        {scanning && scanProgress.total > 0 && (
+          <ScanProgress total={scanProgress.total} scanned={scanProgress.scanned} />
+        )}
+
+        {/* Aggregate overview */}
+        {!scanning && heatmaps.length > 0 && (
+          <AggregateOverview heatmaps={heatmaps} />
+        )}
+
+        {/* Keyword list + Grid */}
+        {heatmaps.length > 0 && (
+          <div className="grid lg:grid-cols-12 gap-6">
+            {/* Left: keyword cards */}
+            <div className="lg:col-span-4 space-y-2">
+              <h2 className="font-semibold text-sm text-gray-500 uppercase tracking-wide mb-2">
+                Tracked Keywords
+              </h2>
+              {heatmaps
+                .filter((h) => h.status === "COMPLETED")
+                .map((h) => (
+                  <KeywordCard
+                    key={h.id}
+                    heatmap={h}
+                    isActive={activeHeatmap?.id === h.id}
+                    onClick={() => loadHeatmap(h.id)}
+                  />
+                ))}
+            </div>
+
+            {/* Right: active heatmap grid */}
+            <div className="lg:col-span-8">
+              {activeHeatmap ? (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="font-semibold text-lg">
+                      &ldquo;{activeHeatmap.keyword}&rdquo;
+                    </h2>
+                    <div className="text-xs text-gray-500">
+                      {activeHeatmap.gridSize}&times;{activeHeatmap.gridSize} grid &middot; {activeHeatmap.radiusKm}km radius &middot;{" "}
+                      {new Date(activeHeatmap.createdAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
                     </div>
                   </div>
-                </button>
-              ))}
+
+                  <StatsBar heatmap={activeHeatmap} />
+
+                  <HeatmapGrid
+                    heatmap={activeHeatmap}
+                    selectedPoint={selectedPoint}
+                    onSelectPoint={setSelectedPoint}
+                  />
+
+                  <Legend />
+
+                  {selectedPoint && <PointDetail point={selectedPoint} />}
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                  <div className="text-gray-400 text-sm">
+                    Select a keyword to view its heatmap
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Empty state */}
-        {!activeHeatmap && heatmaps.length === 0 && (
+        {/* Empty state — no business connected */}
+        {!scanning && heatmaps.length === 0 && (
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <div className="text-5xl mb-4">🗺️</div>
-            <h3 className="font-semibold text-lg mb-2">No heatmap scans yet</h3>
-            <p className="text-gray-500 text-sm max-w-md mx-auto mb-4">
-              Enter a keyword above to see where you rank across a geographic grid around your
-              business. Each cell shows your Google Maps position at that location.
+            <div className="text-5xl mb-4">&#x1F5FA;&#xFE0F;</div>
+            <h3 className="font-semibold text-lg mb-2">Connect your business to get started</h3>
+            <p className="text-gray-500 text-sm max-w-md mx-auto mb-6">
+              Once your Google Business Profile is connected, we will automatically scan your area for the keywords that matter most to your business category.
             </p>
+            <a
+              href="/connect"
+              className="inline-block bg-blue-600 text-white text-sm px-5 py-2.5 rounded-lg hover:bg-blue-700 transition"
+            >
+              Connect your GBP
+            </a>
           </div>
         )}
       </div>

@@ -1,9 +1,168 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
-// ─── Hero Heatmap Grid (static mockup) ─────────────────────
-function HeroGrid() {
+// ─── Demo Heatmap on Real Google Maps ──────────────────────
+
+const DEMO_CENTER = { lat: 40.758, lng: -73.9855 }; // Midtown Manhattan
+
+const DEMO_POINTS = [
+  { lat: 40.766, lng: -73.998, rank: null },
+  { lat: 40.766, lng: -73.992, rank: 12 },
+  { lat: 40.766, lng: -73.986, rank: 8 },
+  { lat: 40.766, lng: -73.980, rank: 15 },
+  { lat: 40.766, lng: -73.974, rank: null },
+  { lat: 40.762, lng: -73.998, rank: 9 },
+  { lat: 40.762, lng: -73.992, rank: 5 },
+  { lat: 40.762, lng: -73.986, rank: 3 },
+  { lat: 40.762, lng: -73.980, rank: 6 },
+  { lat: 40.762, lng: -73.974, rank: 11 },
+  { lat: 40.758, lng: -73.998, rank: 7 },
+  { lat: 40.758, lng: -73.992, rank: 2 },
+  { lat: 40.758, lng: -73.986, rank: 1 },
+  { lat: 40.758, lng: -73.980, rank: 3 },
+  { lat: 40.758, lng: -73.974, rank: 8 },
+  { lat: 40.754, lng: -73.998, rank: 10 },
+  { lat: 40.754, lng: -73.992, rank: 4 },
+  { lat: 40.754, lng: -73.986, rank: 2 },
+  { lat: 40.754, lng: -73.980, rank: 5 },
+  { lat: 40.754, lng: -73.974, rank: 13 },
+  { lat: 40.750, lng: -73.998, rank: null },
+  { lat: 40.750, lng: -73.992, rank: 9 },
+  { lat: 40.750, lng: -73.986, rank: 6 },
+  { lat: 40.750, lng: -73.980, rank: 10 },
+  { lat: 40.750, lng: -73.974, rank: null },
+];
+
+function rankToColor(rank: number | null): string {
+  if (rank === null) return "#6B7280";
+  if (rank <= 3) return "#22C55E";
+  if (rank <= 5) return "#84CC16";
+  if (rank <= 7) return "#EAB308";
+  if (rank <= 10) return "#F97316";
+  if (rank <= 15) return "#EF4444";
+  return "#991B1B";
+}
+
+const DARK_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#1e293b" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#0f172a" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#475569" }] },
+  { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#334155" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#334155" }] },
+  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#64748b" }] },
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#475569" }] },
+  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#1e293b" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0f172a" }] },
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#334155" }] },
+  { featureType: "poi", stylers: [{ visibility: "off" }] },
+  { featureType: "transit", stylers: [{ visibility: "off" }] },
+];
+
+function markerSvg(rank: number | null): string {
+  const s = 30;
+  const fs = 11;
+  const color = rankToColor(rank);
+  const label = rank !== null ? String(rank) : "\u2014";
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}">
+    <defs><filter id="ds"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.35"/></filter></defs>
+    <circle cx="${s / 2}" cy="${s / 2}" r="${s / 2 - 2}" fill="${color}" filter="url(#ds)"/>
+    <circle cx="${s / 2}" cy="${s / 2}" r="${s / 2 - 1}" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1"/>
+    <text x="${s / 2}" y="${s / 2 + fs * 0.37}" text-anchor="middle" fill="#fff" font-size="${fs}" font-weight="700" font-family="system-ui,-apple-system,sans-serif">${label}</text>
+  </svg>`;
+}
+
+let _loadPromise: Promise<void> | null = null;
+function loadMapsAPI(): Promise<void> {
+  if (_loadPromise) return _loadPromise;
+  if (typeof window !== "undefined" && (window as any).google?.maps) return Promise.resolve();
+  _loadPromise = new Promise((resolve, reject) => {
+    const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
+    if (!key) { reject(new Error("no key")); return; }
+    const s = document.createElement("script");
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}`;
+    s.async = true;
+    s.defer = true;
+    s.onload = () => resolve();
+    s.onerror = () => { _loadPromise = null; reject(new Error("load failed")); };
+    document.head.appendChild(s);
+  });
+  return _loadPromise;
+}
+
+function DemoMapHero() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
+  const [fallback, setFallback] = useState(false);
+
+  useEffect(() => {
+    loadMapsAPI()
+      .then(() => {
+        if (!containerRef.current) return;
+        const g = (window as any).google;
+        const map = new g.maps.Map(containerRef.current, {
+          center: DEMO_CENTER,
+          zoom: 14,
+          styles: DARK_STYLE,
+          disableDefaultUI: true,
+          gestureHandling: "none",
+          backgroundColor: "#0f172a",
+          clickableIcons: false,
+        });
+
+        // Business center pin
+        new g.maps.Marker({
+          position: DEMO_CENTER,
+          map,
+          icon: {
+            path: g.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: "#3B82F6",
+            fillOpacity: 1,
+            strokeColor: "#fff",
+            strokeWeight: 3,
+          },
+          zIndex: 1000,
+        });
+
+        // Rank pins
+        DEMO_POINTS.forEach((pt) => {
+          const svg = markerSvg(pt.rank);
+          const url = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+          new g.maps.Marker({
+            position: { lat: pt.lat, lng: pt.lng },
+            map,
+            icon: {
+              url,
+              scaledSize: new g.maps.Size(30, 30),
+              anchor: new g.maps.Point(15, 15),
+            },
+            zIndex: pt.rank ? 100 - pt.rank : 1,
+            optimized: false,
+          });
+        });
+
+        setReady(true);
+      })
+      .catch(() => setFallback(true));
+  }, []);
+
+  if (fallback) return <StaticHeroGrid />;
+
+  return (
+    <div className="relative rounded-2xl overflow-hidden" style={{ height: "360px" }}>
+      <div ref={containerRef} className="w-full h-full" />
+      {!ready && (
+        <div className="absolute inset-0 bg-slate-900 flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// CSS fallback when no Maps API key
+function StaticHeroGrid() {
   const grid = [
     [null, 12, 8, 15, null],
     [9, 5, 3, 6, 11],
@@ -12,30 +171,23 @@ function HeroGrid() {
     [null, 9, 6, 10, null],
   ];
 
-  function color(rank: number | null) {
-    if (rank === null) return "#374151";
-    if (rank <= 3) return "#22C55E";
-    if (rank <= 5) return "#84CC16";
-    if (rank <= 7) return "#EAB308";
-    if (rank <= 10) return "#F97316";
-    if (rank <= 15) return "#EF4444";
-    return "#991B1B";
-  }
-
   return (
-    <div className="grid grid-cols-5 gap-2 max-w-xs mx-auto">
-      {grid.flat().map((rank, i) => (
-        <div
-          key={i}
-          className="heatmap-cell aspect-square rounded-lg flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-sm"
-          style={{
-            backgroundColor: color(rank),
-            animationDelay: `${i * 0.04}s`,
-          }}
-        >
-          {rank ?? "—"}
-        </div>
-      ))}
+    <div className="bg-slate-900 rounded-2xl p-8 inline-block">
+      <div className="grid grid-cols-5 gap-2 max-w-xs mx-auto">
+        {grid.flat().map((rank, i) => (
+          <div
+            key={i}
+            className="heatmap-cell aspect-square rounded-lg flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-sm"
+            style={{
+              backgroundColor: rankToColor(rank),
+              animationDelay: `${i * 0.04}s`,
+            }}
+          >
+            {rank ?? "\u2014"}
+          </div>
+        ))}
+      </div>
+      <p className="text-slate-600 text-xs mt-3 text-center">Your business is at the center</p>
     </div>
   );
 }
@@ -46,15 +198,15 @@ function FAQ() {
   const faqs = [
     {
       q: "Do I need to give full access to my Google account?",
-      a: "No. We only request access to manage your Google Business Profile — reading reviews, posting content, and viewing insights. We cannot access Gmail, Drive, or any other Google service.",
+      a: "No. We only request access to manage your Google Business Profile \u2014 reading reviews, posting content, and viewing insights. We cannot access Gmail, Drive, or any other Google service.",
     },
     {
       q: "How does ranking tracking work?",
-      a: "We check your position in Google Maps search results from a grid of geographic points around your business. You see exactly where you rank from every direction — your strong zones and blind spots.",
+      a: "We check your position in Google Maps search results from a grid of geographic points around your business. You see exactly where you rank from every direction \u2014 your strong zones and blind spots.",
     },
     {
       q: "How is this different from BrightLocal or SEMrush?",
-      a: "Those tools serve agencies managing dozens of clients. GBP Auto is built for the business owner who just wants their Google profile handled — the right posts, review responses, and optimization fixes without learning SEO jargon.",
+      a: "Those tools serve agencies managing dozens of clients. GBP Auto is built for the business owner who just wants their Google profile handled \u2014 the right posts, review responses, and optimization fixes without learning SEO jargon.",
     },
     {
       q: "Can I cancel anytime?",
@@ -121,7 +273,7 @@ export default function LandingPage() {
         </div>
       )}
 
-      {/* Nav — minimal */}
+      {/* Nav */}
       <nav className="border-b border-slate-800/50 sticky top-0 z-40 bg-slate-950/90 backdrop-blur">
         <div className="mx-auto max-w-5xl px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -146,7 +298,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* ── Hero: The Grid ────────────────────────────────────── */}
+      {/* ── Hero ─────────────────────────────────────────────── */}
       <section className="pt-16 sm:pt-24 pb-20">
         <div className="mx-auto max-w-3xl px-6 text-center">
           <p className="text-slate-500 text-sm mb-4">Local rank tracking for Google Maps</p>
@@ -158,15 +310,15 @@ export default function LandingPage() {
             Connect your Google Business Profile. Get a heatmap of your local rankings across every direction. Then let AI handle posts, reviews, and optimization.
           </p>
 
-          {/* The grid — this IS the product */}
-          <div className="bg-slate-900 rounded-2xl p-8 mb-8 inline-block">
-            <HeroGrid />
-            <div className="flex flex-wrap gap-3 justify-center mt-5">
+          {/* The real map hero */}
+          <div className="mb-8">
+            <DemoMapHero />
+            <div className="flex flex-wrap gap-3 justify-center mt-4">
               {[
-                { label: "#1–3", color: "#22C55E" },
-                { label: "#4–5", color: "#84CC16" },
-                { label: "#6–7", color: "#EAB308" },
-                { label: "#8–10", color: "#F97316" },
+                { label: "#1\u20133", color: "#22C55E" },
+                { label: "#4\u20135", color: "#84CC16" },
+                { label: "#6\u20137", color: "#EAB308" },
+                { label: "#8\u201310", color: "#F97316" },
                 { label: "#11+", color: "#EF4444" },
               ].map((item) => (
                 <div key={item.label} className="flex items-center gap-1.5">
@@ -175,7 +327,7 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
-            <p className="text-slate-600 text-xs mt-3">Your business is at the center</p>
+            <p className="text-slate-600 text-xs mt-2">Your business is at the center</p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -186,7 +338,7 @@ export default function LandingPage() {
               Connect your GBP free
             </a>
             <a href="#how" className="text-slate-400 px-8 py-3 rounded-lg hover:text-white transition">
-              How it works →
+              How it works &rarr;
             </a>
           </div>
         </div>
@@ -225,9 +377,9 @@ export default function LandingPage() {
           <h2 className="text-2xl font-bold text-center mb-12">Three steps. Five minutes.</h2>
           <div className="space-y-8">
             {[
-              { step: "1", title: "Connect your Google Business Profile", desc: "Sign in with Google. We only access your business profile — nothing else." },
+              { step: "1", title: "Connect your Google Business Profile", desc: "Sign in with Google. We only access your business profile \u2014 nothing else." },
               { step: "2", title: "See your rank grid instantly", desc: "We scan Google Maps from a grid of points around you. See where you rank from every direction." },
-              { step: "3", title: "Let AI improve your profile", desc: "Posts, review responses, and optimization fixes — all generated automatically. You approve." },
+              { step: "3", title: "Let AI improve your profile", desc: "Posts, review responses, and optimization fixes \u2014 all generated automatically. You approve." },
             ].map((s) => (
               <div key={s.step} className="flex gap-4 items-start">
                 <div className="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 border border-slate-700">
@@ -250,12 +402,12 @@ export default function LandingPage() {
             {[
               { name: "Marco", biz: "Italian Kitchen", metric: "3x more orders", quote: "Started getting 3x more online orders within 2 weeks." },
               { name: "Dr. Sarah", biz: "Bright Smiles Dental", metric: "100% response rate", quote: "Finally keeping up with review responses." },
-              { name: "Mike T.", biz: "Thompson Plumbing", metric: "#8 → #2", quote: "The heatmap showed me exactly where I was invisible." },
+              { name: "Mike T.", biz: "Thompson Plumbing", metric: "#8 \u2192 #2", quote: "The heatmap showed me exactly where I was invisible." },
             ].map((t, i) => (
               <div key={i} className="bg-slate-900 rounded-xl p-5 border border-slate-800">
                 <div className="text-emerald-400 font-bold text-sm mb-2">{t.metric}</div>
                 <p className="text-slate-400 text-sm mb-3">&ldquo;{t.quote}&rdquo;</p>
-                <div className="text-xs text-slate-600">{t.name} · {t.biz}</div>
+                <div className="text-xs text-slate-600">{t.name} &middot; {t.biz}</div>
               </div>
             ))}
           </div>
@@ -287,7 +439,7 @@ export default function LandingPage() {
               <span className="text-slate-500">/mo</span>
             </div>
             <p className="text-slate-500 text-sm mb-6">
-              {annual ? "Billed annually — 2 months free" : "Billed monthly, cancel anytime"}
+              {annual ? "Billed annually \u2014 2 months free" : "Billed monthly, cancel anytime"}
             </p>
 
             <a
